@@ -41,7 +41,8 @@ std::string unix_path(fs::path path) {
 FtpSession::FtpSession(Socket control, ServerConfig config, sockaddr_in client_address)
     : control_(std::move(control)),
       config_(std::move(config)),
-      client_ip_(sockaddr_to_ip(client_address)) {}
+      client_ip_(sockaddr_to_ip(client_address)),
+      session_root_dir_(config_.root_dir) {}
 
 void FtpSession::run() {
     log_line("Cliente conectado: " + client_ip_);
@@ -74,13 +75,27 @@ bool FtpSession::handle_command(const std::string& line) {
     }
 
     if (command == "USER") {
-        user_ok_ = argument == config_.username;
+        requested_root_alias_.clear();
+        auto separator = argument.find('@');
+        auto username = separator == std::string::npos ? argument : argument.substr(0, separator);
+        if (separator != std::string::npos) {
+            requested_root_alias_ = argument.substr(separator + 1);
+        }
+
+        user_ok_ = username == config_.username &&
+                   (requested_root_alias_.empty() ||
+                    config_.root_aliases.find(requested_root_alias_) != config_.root_aliases.end());
         logged_in_ = false;
         reply(331, "Senha requerida");
         return true;
     }
     if (command == "PASS") {
         logged_in_ = user_ok_ && argument == config_.password;
+        if (logged_in_) {
+            auto alias = config_.root_aliases.find(requested_root_alias_);
+            session_root_dir_ = alias == config_.root_aliases.end() ? config_.root_dir : alias->second;
+            cwd_ = "/";
+        }
         reply(logged_in_ ? 230 : 530, logged_in_ ? "Login efetuado" : "Login invalido");
         return true;
     }
@@ -146,7 +161,7 @@ std::optional<fs::path> FtpSession::resolve_path(const std::string& ftp_path, bo
     fs::path normalized = requested.is_absolute() ? requested.lexically_normal()
                                                    : (cwd_ / requested).lexically_normal();
     fs::path relative = normalized.lexically_relative("/");
-    fs::path full = (config_.root_dir / relative).lexically_normal();
+    fs::path full = (session_root_dir_ / relative).lexically_normal();
 
     std::error_code error;
     fs::path check_path = must_exist ? fs::canonical(full, error) : fs::weakly_canonical(full.parent_path(), error);
@@ -159,7 +174,7 @@ std::optional<fs::path> FtpSession::resolve_path(const std::string& ftp_path, bo
         check_path = check_path.lexically_normal();
     }
 
-    auto relative_to_root = fs::relative(check_path, config_.root_dir, error);
+    auto relative_to_root = fs::relative(check_path, session_root_dir_, error);
     if (error || (!relative_to_root.empty() && *relative_to_root.begin() == "..")) {
         return std::nullopt;
     }
@@ -168,7 +183,7 @@ std::optional<fs::path> FtpSession::resolve_path(const std::string& ftp_path, bo
 }
 
 fs::path FtpSession::to_ftp_path(const fs::path& full_path) const {
-    auto relative = fs::relative(full_path, config_.root_dir);
+    auto relative = fs::relative(full_path, session_root_dir_);
     if (relative.empty() || relative == ".") {
         return "/";
     }
@@ -394,7 +409,7 @@ void FtpSession::remove_directory(const std::string& path) {
         return;
     }
 
-    if (*full == config_.root_dir) {
+    if (*full == session_root_dir_) {
         reply(550, "Nao e permitido remover a raiz");
         return;
     }

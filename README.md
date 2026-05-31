@@ -4,13 +4,14 @@ Servidor FTP simples escrito em C++17, com configuracao por arquivo, autenticaca
 
 Descricao breve para o GitHub:
 
-> Servidor FTP basico e multiplataforma em C++17, criado com CMake, com login configuravel, diretorio raiz isolado e suporte aos principais comandos de listagem, upload e download em modo passivo.
+> Servidor FTP basico e multiplataforma em C++17, criado com CMake, com login configuravel, diretorios raiz isolados e suporte aos principais comandos de listagem, upload e download em modo passivo.
 
 ## Recursos
 
 - Configuracao externa por arquivo `.conf`.
 - Login com usuario e senha.
 - Diretorio raiz isolado, impedindo acesso fora da pasta configurada.
+- Raizes dedicadas por alias de login, como `admin@imh`.
 - Modo passivo `PASV` e `EPSV` para conexoes de dados.
 - Listagem, upload, download, criacao e remocao de arquivos/diretorios.
 - Uma thread por cliente conectado.
@@ -24,7 +25,7 @@ RETR, STOR, DELE, MKD, XMKD, RMD, XRMD, TYPE, SYST, FEAT,
 OPTS, NOOP e QUIT
 ```
 
-Este projeto e intencionalmente simples. Ele nao implementa TLS/FTPS, multiplos usuarios, limite por IP ou modo ativo `PORT`.
+Este projeto e intencionalmente simples. Ele nao implementa TLS/FTPS, multiplas senhas, limite por IP ou modo ativo `PORT`.
 
 ## Estrutura
 
@@ -79,6 +80,8 @@ username = admin
 password = admin123
 
 root_dir = ./ftp-root
+root_dir.imh = ./ftp-root/imh-embarcadas
+root_dir.production = ./ftp-root/production
 
 passive_port_min = 40000
 passive_port_max = 40100
@@ -91,7 +94,8 @@ Campos principais:
 - `bind_address`: endereco onde o servidor escuta. Use `0.0.0.0` para aceitar conexoes em todas as interfaces.
 - `port`: porta do canal de controle FTP. A porta `2121` permite executar sem permissao de administrador/root.
 - `username` e `password`: credenciais de acesso.
-- `root_dir`: pasta local que ficara visivel no FTP. O servidor cria a pasta se ela nao existir.
+- `root_dir`: pasta local padrao que ficara visivel no FTP. O servidor cria a pasta se ela nao existir.
+- `root_dir.<alias>`: pasta local dedicada para um alias de login. Por exemplo, `root_dir.imh` fica visivel quando o cliente entra com usuario `admin@imh` e a mesma senha de `admin`.
 - `passive_port_min` e `passive_port_max`: intervalo usado para transferencias em modo passivo.
 - `backlog`: tamanho da fila de conexoes pendentes.
 
@@ -143,6 +147,12 @@ Exemplo com `curl`:
 
 ```bash
 curl --user admin:admin123 ftp://127.0.0.1:2121/
+```
+
+Para acessar a raiz dedicada de IMH embarcadas:
+
+```bash
+curl --user 'admin@imh:admin123' ftp://127.0.0.1:2121/
 ```
 
 Enviar arquivo:

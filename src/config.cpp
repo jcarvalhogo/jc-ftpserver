@@ -70,6 +70,12 @@ std::string read_string(const std::map<std::string, std::string>& values,
     return it == values.end() ? fallback : it->second;
 }
 
+fs::path prepare_root_dir(const fs::path& root_dir) {
+    auto prepared = fs::absolute(root_dir).lexically_normal();
+    fs::create_directories(prepared);
+    return fs::canonical(prepared);
+}
+
 } // namespace
 
 ServerConfig load_config(const fs::path& path) {
@@ -85,6 +91,23 @@ ServerConfig load_config(const fs::path& path) {
     config.passive_port_max = read_int(values, "passive_port_max", config.passive_port_max);
     config.backlog = read_int(values, "backlog", config.backlog);
 
+    const std::string alias_prefix = "root_dir.";
+    for (const auto& [key, value] : values) {
+        if (key.rfind(alias_prefix, 0) != 0) {
+            continue;
+        }
+
+        auto alias = key.substr(alias_prefix.size());
+        if (alias.empty()) {
+            throw std::runtime_error("Alias vazio para diretorio raiz: " + key);
+        }
+        if (value.empty()) {
+            throw std::runtime_error("Diretorio raiz vazio para alias '" + alias + "'");
+        }
+
+        config.root_aliases[alias] = prepare_root_dir(value);
+    }
+
     if (config.port < 1 || config.port > 65535) {
         throw std::runtime_error("A porta de controle deve estar entre 1 e 65535");
     }
@@ -96,9 +119,7 @@ ServerConfig load_config(const fs::path& path) {
         throw std::runtime_error("Usuario e senha nao podem ficar vazios");
     }
 
-    config.root_dir = fs::absolute(config.root_dir).lexically_normal();
-    fs::create_directories(config.root_dir);
-    config.root_dir = fs::canonical(config.root_dir);
+    config.root_dir = prepare_root_dir(config.root_dir);
     return config;
 }
 

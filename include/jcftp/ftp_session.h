@@ -34,6 +34,8 @@ private:
     Socket control_;
     ServerConfig config_;
     std::string client_ip_;
+    std::string requested_root_alias_;
+    fs::path session_root_dir_;
     bool user_ok_ = false;
     bool logged_in_ = false;
     fs::path cwd_ = "/";

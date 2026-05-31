@@ -37,6 +37,9 @@ void run_server(const ServerConfig& config) {
 
     log_line("Servidor FTP iniciado em " + config.bind_address + ":" + std::to_string(config.port));
     log_line("Raiz FTP: " + config.root_dir.string());
+    for (const auto& [alias, root_dir] : config.root_aliases) {
+        log_line("Raiz FTP @" + alias + ": " + root_dir.string());
+    }
 
     while (true) {
         sockaddr_in client{};

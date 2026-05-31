@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <map>
 #include <string>
 
 namespace jcftp {
@@ -17,6 +18,7 @@ struct ServerConfig {
 #else
     fs::path root_dir = "/home/jcarvalho/Documentos/ftp-files";
 #endif
+    std::map<std::string, fs::path> root_aliases;
     int passive_port_min = 40000;
     int passive_port_max = 40100;
     int backlog = 16;
