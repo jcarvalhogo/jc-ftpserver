@@ -80,7 +80,7 @@ username = admin
 password = admin123
 
 root_dir = ./ftp-root
-root_dir.imh = ./ftp-root/imh-embarcadas
+root_dir.imh = ./ftp-root/hmi
 root_dir.production = ./ftp-root/production
 
 passive_port_min = 40000
@@ -149,7 +149,7 @@ Exemplo com `curl`:
 curl --user admin:admin123 ftp://127.0.0.1:2121/
 ```
 
-Para acessar a raiz dedicada de IMH embarcadas:
+Para acessar a raiz dedicada de HMI:
 
 ```bash
 curl --user 'admin@imh:admin123' ftp://127.0.0.1:2121/
